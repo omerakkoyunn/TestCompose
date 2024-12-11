@@ -1,47 +1,64 @@
 package com.example.testcompose
 
+import android.app.KeyguardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.view.View
+import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.annotation.RequiresApi
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.testcompose.ui.theme.TestComposeTheme
+import com.example.testcompose.service.OverlayService
+
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            TestComposeTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+            checkOverlayPermission()
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+    // Method to check overlay permissions
+    private fun checkOverlayPermission() {
+        if (!Settings.canDrawOverlays(this)) {
+            // If overlay permission is not granted, request it
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:$packageName"))
+            startActivity(intent)
+        } else {
+            // If permission is granted, start overlay service
+            startOverlayService()
+        }
+    }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    TestComposeTheme {
-        Greeting("Android")
+    // Start the overlay service
+    private fun startOverlayService() {
+        val serviceIntent = Intent(this, OverlayService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+
+        finish()
+    }
+
+
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop the overlay service when the activity is destroyed
+        val serviceIntent = Intent(this, OverlayService::class.java)
+       // stopService(serviceIntent)
     }
 }
